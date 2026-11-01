@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  swift:
+    name: Swift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift build and test
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src \
+            swift:5.9 \
+            sh -c "swift build && swift test && swift package dump-package >/dev/null"
+
+  cocoapods:
+    name: CocoaPods lib lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pod lib lint
+        run: |
+          if ! command -v pod >/dev/null 2>&1; then
+            sudo gem install cocoapods -N
+          fi
+          pod lib lint --allow-warnings
+
+  # pod spec lint clones the tag named in the podspec. It can pass only after
+  # that tag is on GitHub, so this job runs when the workflow is started by a tag.
+  cocoapods-spec:
+    name: CocoaPods spec lint
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pod spec lint
+        run: |
+          if ! command -v pod >/dev/null 2>&1; then
+            sudo gem install cocoapods -N
+          fi
+          pod spec lint CoworkingView.podspec --allow-warnings
